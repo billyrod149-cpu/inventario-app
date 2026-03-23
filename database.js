@@ -1,23 +1,18 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// La base de datos se guardara en este archivo localmente
-const dbPath = path.resolve(__dirname, 'inventory.db');
+// Usamos un nuevo archivo de BD para empezar limpios con el nuevo esquema de Activos IT
+const dbPath = path.resolve(__dirname, 'assets_inventory.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('❌ Error al abrir la base de datos sqlite:', err.message);
     } else {
-        console.log('✅ Conectado a la base de datos SQLite.');
+        console.log('✅ Conectado a la base de datos de Activos IT.');
         
-        // Habilitar el uso de llaves foráneas (para que las relaciones funcionen bien)
-        db.run('PRAGMA foreign_keys = ON;', (err) => {
-            if (err) console.error("Error habilitando llaves foráneas:", err.message);
-        });
+        db.run('PRAGMA foreign_keys = ON;', (err) => {});
 
-        // Crear las tablas si no existen
         db.serialize(() => {
-            
             db.run(`CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
@@ -31,39 +26,35 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 location TEXT
             )`);
 
-            db.run(`CREATE TABLE IF NOT EXISTS products (
+            // Nueva tabla enfocada a control exacto de equipo de cómputo (1 fila = 1 equipo físico)
+            db.run(`CREATE TABLE IF NOT EXISTS assets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sku TEXT UNIQUE NOT NULL,
-                name TEXT NOT NULL,
-                description TEXT,
-                price REAL NOT NULL DEFAULT 0.0
-            )`);
-
-            db.run(`CREATE TABLE IF NOT EXISTS inventory (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                product_id INTEGER NOT NULL,
+                serial_number TEXT UNIQUE NOT NULL,
+                asset_type TEXT NOT NULL, 
+                brand TEXT,
+                model TEXT,
+                details TEXT,
+                status TEXT DEFAULT 'Activo',
                 branch_id INTEGER NOT NULL,
-                quantity INTEGER NOT NULL DEFAULT 0,
-                FOREIGN KEY (product_id) REFERENCES products (id),
-                FOREIGN KEY (branch_id) REFERENCES branches (id),
-                UNIQUE(product_id, branch_id)
+                FOREIGN KEY (branch_id) REFERENCES branches (id)
             )`);
 
+            // Historial de traslados de un equipo de un lugar a otro
             db.run(`CREATE TABLE IF NOT EXISTS movements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                product_id INTEGER NOT NULL,
-                branch_id INTEGER NOT NULL,
+                asset_id INTEGER NOT NULL,
+                from_branch_id INTEGER,
+                to_branch_id INTEGER,
                 user_id INTEGER NOT NULL,
-                type TEXT NOT NULL CHECK(type IN ('IN', 'OUT')),
-                quantity INTEGER NOT NULL,
                 date DATETIME DEFAULT CURRENT_TIMESTAMP,
                 notes TEXT,
-                FOREIGN KEY (product_id) REFERENCES products (id),
-                FOREIGN KEY (branch_id) REFERENCES branches (id),
+                FOREIGN KEY (asset_id) REFERENCES assets (id),
+                FOREIGN KEY (from_branch_id) REFERENCES branches (id),
+                FOREIGN KEY (to_branch_id) REFERENCES branches (id),
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )`);
 
-            console.log('✅ Tablas inicializadas correctamente.');
+            console.log('✅ Esquemas de Activos IT (Computadoras) inicializados correctamente.');
         });
     }
 });

@@ -5,7 +5,7 @@ let state = {
     user: null,
     token: null,
     branches: [],
-    products: []
+    assets: []
 };
 
 // --- API Wrapper ---
@@ -18,22 +18,19 @@ async function fetchAPI(endpoint, options = {}) {
     const data = await res.json();
     
     if (res.status === 401 || res.status === 403) {
-        logout();
-        throw new Error("Sesión expirada o no autorizado");
+        logout(); throw new Error("Sesión expirada o no autorizado");
     }
     if (!res.ok) throw new Error(data.error || 'Error en la petición');
     return data;
 }
 
 function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    state.token = null; state.user = null;
-    renderLogin();
+    localStorage.removeItem('token'); localStorage.removeItem('user');
+    state.token = null; state.user = null; renderLogin();
 }
 
-function notifySuccess(msg) { alert(msg); } // Basic default alert for now
-function notifyError(msg) { alert("Error: " + msg); }
+function notifySuccess(msg) { alert("✅ " + msg); } 
+function notifyError(msg) { alert("❌ Error: " + msg); }
 
 // --- VIEWS ---
 
@@ -41,48 +38,30 @@ function renderLogin() {
     document.body.className = 'auth-layout';
     appDiv.innerHTML = `
         <div class="auth-container">
-            <h2>📦 InvenTrack Pro</h2>
-            <p>Ingresa tus credenciales para acceder</p>
+            <h2>💻 IT Asset Manager</h2>
+            <p>Control exacto de computadoras y equipos por número de serie</p>
             <form id="loginForm">
-                <div class="form-group">
-                    <label>Usuario</label>
-                    <input type="text" id="username" required autocomplete="username">
-                </div>
-                <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" required autocomplete="current-password">
-                </div>
+                <div class="form-group"><label>Usuario</label><input type="text" id="username" required></div>
+                <div class="form-group"><label>Contraseña</label><input type="password" id="password" required></div>
                 <div id="loginError" class="error-msg"></div>
-                <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Iniciar Sesión</button>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Acceder</button>
             </form>
         </div>
     `;
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = e.target.username.value;
-        const password = e.target.password.value;
         const errorDiv = document.getElementById('loginError');
-        const submitBtn = e.target.querySelector('button');
-        
         try {
-            submitBtn.textContent = 'Verificando...'; submitBtn.disabled = true;
-            const res = await fetch(`${API_URL}/auth/login`, {
+            const data = await fetchAPI('/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username: e.target.username.value, password: e.target.password.value })
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
-            
             state.token = data.token; state.user = data.user;
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
+            localStorage.setItem('token', data.token); localStorage.setItem('user', JSON.stringify(data.user));
             renderLayout();
         } catch (err) {
-            errorDiv.textContent = err.message || 'Error de autenticación';
-            errorDiv.style.display = 'block';
-            submitBtn.textContent = 'Iniciar Sesión'; submitBtn.disabled = false;
+            errorDiv.textContent = err.message; errorDiv.style.display = 'block';
         }
     });
 }
@@ -91,30 +70,26 @@ function renderLayout() {
     document.body.className = 'app-layout';
     appDiv.innerHTML = `
         <nav class="sidebar">
-            <h2>📦 InvenTrack</h2>
+            <h2 style="font-size:1.2rem;">💻 IT Asset Manager</h2>
             <div class="nav-menu">
-                <a class="nav-link" id="nav-dashboard">📊 Dashboard Global</a>
-                <a class="nav-link" id="nav-inventory">📦 Stock e Inventario</a>
-                <a class="nav-link" id="nav-movements">🔄 Entradas / Salidas</a>
-                <a class="nav-link" id="nav-products">🛒 Catálogo Productos</a>
-                <a class="nav-link" id="nav-branches">🏢 Sucursales</a>
+                <a class="nav-link" id="nav-dashboard">📊 Resumen</a>
+                <a class="nav-link" id="nav-assets">🖥️ Catálogo de Equipos</a>
+                <a class="nav-link" id="nav-movements">🔄 Traslados (Movimientos)</a>
+                <a class="nav-link" id="nav-branches">🏢 Sucursales / Oficinas</a>
             </div>
-            <div style="margin-top: auto;">
-                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem; text-align: center;">Usuario: <strong>${state.user.username}</strong> (${state.user.role})</p>
+            <div style="margin-top: auto; text-align:center;">
+                <p style="color:var(--text-secondary); font-size:0.875rem; margin-bottom: 0.75rem;">Usuario: <strong>${state.user.username}</strong></p>
                 <button onclick="logout()" class="btn btn-danger" style="width: 100%; padding:0.6rem;">Cerrar Sesión</button>
             </div>
         </nav>
-        <main class="main-content" id="main-content">
-            <!-- Dynamic Content Injected Here -->
-        </main>
+        <main class="main-content" id="main-content"></main>
         
-        <!-- Reusable Modal Layout -->
         <div class="modal-overlay" id="global-modal">
             <div class="modal-content">
                 <h2 id="modal-title" style="margin-top: 0">Título</h2>
                 <div id="modal-body"></div>
                 <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
-                    <button class="btn" style="background: var(--border); color: var(--text-primary);" onclick="closeModal()">Cancelar</button>
+                    <button class="btn" style="background:var(--border); color:var(--text-primary);" onclick="closeModal()">Cancelar</button>
                     <button class="btn" id="modal-save">Guardar Cambios</button>
                 </div>
             </div>
@@ -125,8 +100,7 @@ function renderLayout() {
         link.addEventListener('click', (e) => {
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
             e.target.classList.add('active');
-            const view = e.target.id.split('-')[1];
-            loadView(view);
+            loadView(e.target.id.split('-')[1]);
         });
     });
 
@@ -137,82 +111,77 @@ function renderLayout() {
 async function preloadData() {
     try {
         state.branches = await fetchAPI('/branches');
-        state.products = await fetchAPI('/products');
+        state.assets = await fetchAPI('/assets');
     } catch(e) { console.error('Error preloading data', e); }
 }
 
 function loadView(view) {
     const main = document.getElementById('main-content');
-    main.innerHTML = `<div style="text-align:center; padding: 4rem; color: var(--text-secondary);">Cargando información...</div>`;
-    
+    main.innerHTML = `<div style="text-align:center; padding: 4rem; color:var(--text-secondary);">Cargando equipos...</div>`;
     switch(view) {
-        case 'dashboard': renderDashboardView(main); break;
-        case 'inventory': renderInventoryView(main); break;
-        case 'movements': renderMovementsView(main); break;
-        case 'products': renderProductsView(main); break;
-        case 'branches': renderBranchesView(main); break;
+        case 'dashboard': renderDashboard(main); break;
+        case 'assets': renderAssets(main); break;
+        case 'movements': renderMovements(main); break;
+        case 'branches': renderBranches(main); break;
     }
 }
 
-// -- INDIVIDUAL DATA VIEWS --
+// -- DATA VIEWS --
 
-async function renderDashboardView(container) {
+async function renderDashboard(container) {
     try {
-        const inventory = await fetchAPI('/inventory');
-        const movements = await fetchAPI('/movements');
-        const totalItems = inventory.reduce((sum, item) => sum + item.quantity, 0);
+        const assets = await fetchAPI('/assets');
         
+        // Contar el tipo de equipos para dar estadísticas geniales
+        const typeCount = assets.reduce((acc, curr) => {
+            acc[curr.asset_type] = (acc[curr.asset_type] || 0) + 1;
+            return acc;
+        }, {});
+
         container.innerHTML = `
-            <div class="header-flex">
-                <h1>Dashboard Global</h1>
-            </div>
+            <div class="header-flex"><h1>Dashboard de Activos</h1></div>
             <div class="grid-3">
-                <div class="stat-card"><h3>Total Productos Físicos</h3><p>${totalItems}</p></div>
-                <div class="stat-card"><h3>Catálogo (SKUs)</h3><p>${state.products.length}</p></div>
-                <div class="stat-card"><h3>Sucursales Físicas</h3><p>${state.branches.length}</p></div>
+                <div class="stat-card"><h3>Total Equipos Físicos</h3><p>${assets.length}</p></div>
+                <div class="stat-card"><h3>Total Sucursales/Oficinas</h3><p>${state.branches.length}</p></div>
             </div>
             
             <div class="card">
-                <h2 style="margin-top: 0">Movimientos Recientes</h2>
-                <table>
-                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Sucursal</th><th>Cant.</th><th>Usuario</th></tr></thead>
-                    <tbody>
-                        ${movements.length === 0 ? '<tr><td colspan="6" style="text-align:center">No hay movimientos recientes</td></tr>' : ''}
-                        ${movements.slice(0, 5).map(m => `
-                            <tr>
-                                <td>${new Date(m.date).toLocaleString()}</td>
-                                <td><span class="badge ${m.type === 'IN' ? 'badge-in' : 'badge-out'}">${m.type === 'IN' ? 'ENTRADA' : 'SALIDA'}</span></td>
-                                <td>${m.product_name} (${m.sku})</td>
-                                <td>${m.branch_name}</td>
-                                <td><strong>${m.quantity}</strong></td>
-                                <td>${m.user}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <h2 style="margin-top: 0">Desglose por Tipo de Equipo</h2>
+                <div style="display:flex; gap: 1rem; flex-wrap:wrap;">
+                    ${Object.entries(typeCount).map(([type, count]) => `
+                        <div style="padding: 1rem; background: var(--bg-color); border-radius: var(--radius); border: 1px solid var(--border); min-width: 150px; text-align:center;">
+                            <h4 style="margin:0; color:var(--text-secondary)">${type}</h4>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 1.5rem; font-weight:700;">${count}</p>
+                        </div>
+                    `).join('')}
+                    ${Object.keys(typeCount).length === 0 ? '<p>No hay equipos registrados aún.</p>' : ''}
+                </div>
             </div>
         `;
     } catch (err) { container.innerHTML = `<p class="error-msg" style="display:block">${err.message}</p>`; }
 }
 
-async function renderInventoryView(container) {
+async function renderAssets(container) {
     try {
-        const inventory = await fetchAPI('/inventory');
+        const assets = await fetchAPI('/assets');
+        state.assets = assets; // Cache para traslados
         container.innerHTML = `
             <div class="header-flex">
-                <h1>Stock en Tiempo Real</h1>
+                <h1>Catálogo de Equipos y Componentes</h1>
+                <button class="btn" onclick="openAssetModal()">+ Registrar Nuevo Equipo</button>
             </div>
             <div class="card">
                 <table>
-                    <thead><tr><th>SKU</th><th>Producto</th><th>Sucursal</th><th>Cant. Disponible</th></tr></thead>
+                    <thead><tr><th>Número de Serie (SN)</th><th>Tipo</th><th>Marca y Modelo</th><th>Especificaciones</th><th>Ubicación Actual</th></tr></thead>
                     <tbody>
-                        ${inventory.length === 0 ? '<tr><td colspan="4" style="text-align:center">No hay stock registrado. Registra una entrada primero.</td></tr>' : ''}
-                        ${inventory.map(i => `
+                        ${assets.length === 0 ? '<tr><td colspan="5" style="text-align:center">Inventario vacío. Empieza registrando un equipo.</td></tr>' : ''}
+                        ${assets.map(a => `
                             <tr>
-                                <td><span class="badge" style="background:var(--border); color:var(--text-primary)">${i.sku}</span></td>
-                                <td><strong>${i.product_name}</strong></td>
-                                <td>${i.branch_name}</td>
-                                <td><strong style="font-size: 1.1rem; color: ${i.quantity <= 5 ? 'var(--danger)' : 'var(--text-primary)'}">${i.quantity}</strong></td>
+                                <td><span class="badge" style="background:#E0E7FF; color:#3730A3">${a.serial_number}</span></td>
+                                <td><strong>${a.asset_type}</strong></td>
+                                <td>${a.brand} ${a.model}</td>
+                                <td><small style="color:var(--text-secondary)">${a.details || '-'}</small></td>
+                                <td><span class="badge" style="background:var(--primary); color:white;">📍 ${a.branch_name}</span></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -222,19 +191,48 @@ async function renderInventoryView(container) {
     } catch (err) { container.innerHTML = `<p>${err.message}</p>`; }
 }
 
-async function renderBranchesView(container) {
+async function renderMovements(container) {
+    try {
+        await preloadData(); 
+        const movements = await fetchAPI('/movements');
+        container.innerHTML = `
+            <div class="header-flex">
+                <h1>Historial de Traslados</h1>
+                <button class="btn" onclick="openMovementModal()">🔄 Trasladar Equipo (Asignar a otra sucursal)</button>
+            </div>
+            <div class="card">
+                <table>
+                    <thead><tr><th>Fecha y Hora</th><th>Equipo (SN)</th><th>Origen</th><th>Destino</th><th>Responsable Traslado</th><th>Motivo / Notas</th></tr></thead>
+                    <tbody>
+                        ${movements.map(m => `
+                            <tr>
+                                <td>${new Date(m.date).toLocaleString()}</td>
+                                <td><strong>${m.asset_type}</strong> <br><small style="color:var(--text-secondary)">SN: ${m.serial_number}</small></td>
+                                <td style="color:var(--text-secondary)">${m.from_branch || '- (Alta Nueva)'}</td>
+                                <td><strong>${m.to_branch}</strong></td>
+                                <td>${m.user}</td>
+                                <td><small>${m.notes || ''}</small></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) { container.innerHTML = `<p>${err.message}</p>`; }
+}
+
+async function renderBranches(container) {
     try {
         const branches = await fetchAPI('/branches');
         container.innerHTML = `
             <div class="header-flex">
-                <h1>Sucursales</h1>
-                ${state.user.role === 'Admin' ? `<button class="btn" onclick="openBranchModal()">+ Nueva Sucursal</button>` : ''}
+                <h1>Sucursales / Oficinas</h1>
+                <button class="btn" onclick="openBranchModal()">+ Nueva Ubicación</button>
             </div>
             <div class="card">
                 <table>
-                    <thead><tr><th># ID</th><th>Nombre de Sucursal</th><th>Ubicación</th></tr></thead>
+                    <thead><tr><th>ID Ubicación</th><th>Nombre Oficina</th><th>Dirección Física</th></tr></thead>
                     <tbody>
-                        ${branches.length === 0 ? '<tr><td colspan="3" style="text-align:center">No hay sucursales. Crea una nueva.</td></tr>' : ''}
                         ${branches.map(b => `<tr><td>${b.id}</td><td><strong>${b.name}</strong></td><td>${b.location || '-'}</td></tr>`).join('')}
                     </tbody>
                 </table>
@@ -243,60 +241,7 @@ async function renderBranchesView(container) {
     } catch (err) { container.innerHTML = `<p>${err.message}</p>`; }
 }
 
-async function renderProductsView(container) {
-    try {
-        const products = await fetchAPI('/products');
-        container.innerHTML = `
-            <div class="header-flex">
-                <h1>Catálogo de Productos</h1>
-                ${state.user.role === 'Admin' ? `<button class="btn" onclick="openProductModal()">+ Nuevo Producto</button>` : ''}
-            </div>
-            <div class="card">
-                <table>
-                    <thead><tr><th>SKU</th><th>Nombre</th><th>Descripción</th><th>Precio Referencia</th></tr></thead>
-                    <tbody>
-                        ${products.length === 0 ? '<tr><td colspan="4" style="text-align:center">El catálogo está vacío.</td></tr>' : ''}
-                        ${products.map(p => `<tr><td><span class="badge" style="background:var(--border); color:var(--text-primary)">${p.sku}</span></td><td><strong>${p.name}</strong></td><td>${p.description || '-'}</td><td>$${p.price.toFixed(2)}</td></tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    } catch (err) { container.innerHTML = `<p>${err.message}</p>`; }
-}
-
-async function renderMovementsView(container) {
-    try {
-        await preloadData(); // Refresh dropdown info
-        const movements = await fetchAPI('/movements');
-        container.innerHTML = `
-            <div class="header-flex">
-                <h1>Registro Histórico de Movimientos</h1>
-                <button class="btn" onclick="openMovementModal()">+ Registrar Entrada o Salida</button>
-            </div>
-            <div class="card">
-                <table>
-                    <thead><tr><th>Fecha y Hora</th><th>Transacción</th><th>Producto</th><th>Sucursal</th><th>Cant.</th><th>Responsable</th><th>Notas</th></tr></thead>
-                    <tbody>
-                        ${movements.length === 0 ? '<tr><td colspan="7" style="text-align:center">No hay movimientos.</td></tr>' : ''}
-                        ${movements.map(m => `
-                            <tr>
-                                <td>${new Date(m.date).toLocaleString()}</td>
-                                <td><span class="badge ${m.type === 'IN' ? 'badge-in' : 'badge-out'}">${m.type === 'IN' ? 'INGRESO' : 'EGRESO'}</span></td>
-                                <td>${m.product_name} <br><small style="color:var(--text-secondary)">${m.sku}</small></td>
-                                <td>${m.branch_name}</td>
-                                <td><strong>${m.quantity}</strong></td>
-                                <td>${m.user}</td>
-                                <td><small style="color:var(--text-secondary)">${m.notes || '-'}</small></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    } catch (err) { container.innerHTML = `<p>${err.message}</p>`; }
-}
-
-// --- MODALS (POPUPS) ---
+// --- MODALS ---
 
 const modal = {
     open: (title, html, onSave) => {
@@ -317,90 +262,88 @@ const modal = {
 window.closeModal = modal.close; 
 
 function openBranchModal() {
-    modal.open('Crear Nueva Sucursal', `
-        <div class="form-group"><label>Nombre de la Sucursal</label><input type="text" id="b-name" placeholder="Ej: Sucursal Centro" required></div>
-        <div class="form-group"><label>Dirección / Ubicación</label><input type="text" id="b-loc" placeholder="Ej: Av. Principal 123"></div>
+    modal.open('Crear Nueva Sucursal o Área', `
+        <div class="form-group"><label>Nombre (Ej: Oficina Central, RRHH, Sucursal Norte)</label><input type="text" id="b-name" required></div>
+        <div class="form-group"><label>Ubicación / Piso</label><input type="text" id="b-loc"></div>
     `, async () => {
         const name = document.getElementById('b-name').value;
-        const location = document.getElementById('b-loc').value;
-        if(!name) throw new Error("El nombre es requerido");
-        await fetchAPI('/branches', { method: 'POST', body: JSON.stringify({name, location}) });
-        notifySuccess("Sucursal agregada"); loadView('branches'); preloadData();
+        if(!name) throw new Error("Nombre requerido");
+        await fetchAPI('/branches', { method: 'POST', body: JSON.stringify({name, location: document.getElementById('b-loc').value}) });
+        notifySuccess("Oficina/Sucursal registrada"); loadView('branches'); preloadData();
     });
 }
 
-function openProductModal() {
-    modal.open('Agregar Nuevo Producto', `
-        <div class="form-group"><label>Código Único (SKU)</label><input type="text" id="p-sku" placeholder="Ej: LAP-HP-14" required></div>
-        <div class="form-group"><label>Nombre del Producto</label><input type="text" id="p-name" required></div>
-        <div class="form-group"><label>Descripción</label><textarea id="p-desc" rows="2"></textarea></div>
-        <div class="form-group"><label>Precio Base o Referencia ($)</label><input type="number" step="0.01" id="p-price" value="0"></div>
+function openAssetModal() {
+    if(state.branches.length === 0) { notifyError("Debes registrar al menos una Sucursal/Oficina primero."); return; }
+    
+    modal.open('Dar de Alta un Equipo Físico Único', `
+        <div class="form-group">
+            <label>Tipo de Equipo</label>
+            <select id="a-type">
+                <option value="Laptop">Laptop / Portátil</option>
+                <option value="PC Escritorio">Computadora de Escritorio</option>
+                <option value="Monitor">Monitor</option>
+                <option value="Memoria RAM">Memoria RAM</option>
+                <option value="Disco / Almacenamiento">Disco de Almacenamiento</option>
+                <option value="Accesorio / Otro">Otro (Teclados, Switches)</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Número de Serie (Serial Number)</label><input type="text" id="a-serial" placeholder="Ej: JXBR782" required></div>
+        <div style="display:flex; gap:1rem;">
+            <div class="form-group" style="flex:1"><label>Marca</label><input type="text" id="a-brand" placeholder="Ej: Dell"></div>
+            <div class="form-group" style="flex:1"><label>Modelo</label><input type="text" id="a-model" placeholder="Ej: Latitude 7420"></div>
+        </div>
+        <div class="form-group"><label>Especificaciones (Procesador, RAM, tamaño, etc)</label><input type="text" id="a-details" placeholder="Ej: Intel i7, 16GB RAM, 512GB SSD"></div>
+        <div class="form-group"><label>Ubicación Física Inicial</label>
+            <select id="a-branch">${state.branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}</select>
+        </div>
     `, async () => {
         const payload = {
-            sku: document.getElementById('p-sku').value,
-            name: document.getElementById('p-name').value,
-            description: document.getElementById('p-desc').value,
-            price: parseFloat(document.getElementById('p-price').value) || 0
+            serial_number: document.getElementById('a-serial').value,
+            asset_type: document.getElementById('a-type').value,
+            brand: document.getElementById('a-brand').value,
+            model: document.getElementById('a-model').value,
+            details: document.getElementById('a-details').value,
+            branch_id: parseInt(document.getElementById('a-branch').value)
         };
-        if(!payload.sku || !payload.name) throw new Error("Debes proporcionar SKU y Nombre al menos");
-        await fetchAPI('/products', { method: 'POST', body: JSON.stringify(payload) });
-        notifySuccess("Producto registrado"); loadView('products'); preloadData();
+        if(!payload.serial_number) throw new Error("El Serial Number es estrictamente obligatorio para el control");
+        await fetchAPI('/assets', { method: 'POST', body: JSON.stringify(payload) });
+        notifySuccess("Equipo registrado y asignado a sucursal."); loadView('assets'); preloadData();
     });
 }
 
 function openMovementModal() {
-    if(state.branches.length === 0 || state.products.length === 0) {
-        notifyError("Debes registrar al menos una sucursal y un producto primero al sistema."); return;
-    }
+    if(state.assets.length === 0 || state.branches.length === 0) { notifyError("Debes registrar al menos un equipo y una sucursal."); return; }
     
-    modal.open('Registrar Entrada o Salida de Inventario', `
+    modal.open('Trasladar Equipo (Cambio de Asignación / Sucursal)', `
         <div class="form-group">
-            <label>Tipo de Operación</label>
-            <select id="m-type">
-                <option value="IN">ENTRADA (Añadir stock a la sucursal)</option>
-                <option value="OUT">SALIDA (Restar stock de la sucursal)</option>
-            </select>
+            <label>Selecciona el Equipo Exacto por Número de Serie</label>
+            <select id="m-asset">${state.assets.map(a => `<option value="${a.id}">[${a.serial_number}] - ${a.asset_type} ${a.brand} (${a.branch_name})</option>`).join('')}</select>
         </div>
         <div class="form-group">
-            <label>Selecciona la Sucursal</label>
+            <label>Nueva Sucursal / Oficina de Destino</label>
             <select id="m-branch">${state.branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}</select>
         </div>
         <div class="form-group">
-            <label>Selecciona el Producto</label>
-            <select id="m-product">${state.products.map(p => `<option value="${p.id}">${p.sku} - ${p.name}</option>`).join('')}</select>
-        </div>
-        <div class="form-group">
-            <label>Cantidad a Mover</label>
-            <input type="number" id="m-qty" min="1" value="1" required>
-        </div>
-        <div class="form-group">
-            <label>Información Adicional (Opcional)</label>
-            <input type="text" id="m-notes" placeholder="Ej: Factura de proveedor #999, venta local...">
+            <label>Motivo del Traslado (Opcional)</label>
+            <input type="text" id="m-notes" placeholder="Ej: Reparación, asignado a nuevo empleado, etc.">
         </div>
     `, async () => {
         const payload = {
-            type: document.getElementById('m-type').value,
-            branch_id: parseInt(document.getElementById('m-branch').value),
-            product_id: parseInt(document.getElementById('m-product').value),
-            quantity: parseInt(document.getElementById('m-qty').value),
+            asset_id: parseInt(document.getElementById('m-asset').value),
+            to_branch_id: parseInt(document.getElementById('m-branch').value),
             notes: document.getElementById('m-notes').value
         };
         await fetchAPI('/movements', { method: 'POST', body: JSON.stringify(payload) });
-        notifySuccess("Operación registrada correctamente"); loadView('movements');
+        notifySuccess("Equipo trasladado físicamente a la nueva ubicación."); loadView('movements');
     });
 }
 
-// Init Auth State Check
+// Init
 function init() {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
-    if (token && userStr) {
-        state.token = token;
-        state.user = JSON.parse(userStr);
-        renderLayout();
-    } else {
-        renderLogin();
-    }
+    if (token && userStr) { state.token = token; state.user = JSON.parse(userStr); renderLayout(); } 
+    else renderLogin();
 }
-
 init();
